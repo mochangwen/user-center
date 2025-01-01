@@ -2,6 +2,8 @@ package com.mochangwen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.mochangwen.common.ErrorCode;
 import com.mochangwen.exception.BusinessException;
 import com.mochangwen.model.domain.User;
@@ -10,9 +12,14 @@ import com.mochangwen.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import javax.servlet.http.HttpServletRequest;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.mochangwen.constant.UserConstant.userLoginStatus;
 
@@ -115,6 +122,46 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return user;
     }
 
+    /**
+     * 根据标签查询用户
+     * @param tagNameList 标签列表
+     * @return
+     */
+
+    @Override
+    public List<User> searchUsersByTags(List<String> tagNameList) {
+        //1.判断参数是否为空
+        if (CollectionUtils.isEmpty(tagNameList)){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+//        //2.查询数据库
+//        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+//        tagNameList.forEach(tagName -> {
+//            wrapper.like(User::getTags,tagName);
+//        });
+//        List<User> userList = list(wrapper);
+//        return userList.stream().map(user -> getSafeUser(user)).collect(Collectors.toList());
+
+        //在内存中查寻
+        List<User> userList = this.list();
+        Gson gson = new Gson();
+        //2.判断内存中是否包含要求的标签
+        return userList.stream().filter(user -> {
+            String tagstr = user.getTags();
+            if (StringUtils.isBlank(tagstr)){
+                return false;
+            }
+            Set<String> tempTagNameSet =  gson.fromJson(tagstr,new TypeToken<Set<String>>(){}.getType());
+            for (String tagName : tagNameList){
+                if (!tempTagNameSet.contains(tagName)){
+                    return false;
+                }
+            }
+            return true;
+        }).map(this::getSafeUser).collect(Collectors.toList());
+    }
+
+
     @Override
     public User getSafeUser(User user) {
         if (user == null) {
@@ -133,6 +180,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         safeUser.setUpdateTime(user.getUpdateTime());
         safeUser.setUserRole(user.getUserRole());
         safeUser.setPlanetCode(user.getPlanetCode());
+        safeUser.setTags(user.getTags());
         return safeUser;
     }
 

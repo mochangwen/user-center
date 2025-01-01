@@ -4,6 +4,7 @@ import com.mochangwen.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
 * @author 莫昌文
@@ -30,4 +31,9 @@ public interface UserService extends IService<User> {
      * @return
      */
     User getSafeUser(User user);
+
+    /**
+     * 根据标签查询用户
+     */
+    List<User> searchUsersByTags(List<String> tagNameList);
 }

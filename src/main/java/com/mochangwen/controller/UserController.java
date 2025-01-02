@@ -10,9 +10,12 @@ import com.mochangwen.model.domain.User;
 import com.mochangwen.model.dto.UserLoginRequest;
 import com.mochangwen.model.dto.UserRegisterRequest;
 import com.mochangwen.service.UserService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -27,6 +30,7 @@ import static com.mochangwen.constant.UserConstant.userLoginStatus;
 @Slf4j
 //允许跨域
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@Api(tags = "用户接口")
 public class UserController {
 
     @Autowired
@@ -37,6 +41,7 @@ public class UserController {
      * @param userRegisterRequest 用户注册请求
      */
     @PostMapping("/register")
+    @ApiOperation(value = "用户注册")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest){
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
@@ -71,6 +76,19 @@ public class UserController {
         return ResultUtils.success(user,"登录成功");
     }
 
+    /**
+     * 根据标签查询用户
+     */
+    @GetMapping("/search/tags")
+    @ApiOperation(value = "根据标签查询用户")
+    public BaseResponse<List<User>> searchUsersByTags(@RequestParam(required = false) List<String> tagNameList){
+        if (CollectionUtils.isEmpty(tagNameList)){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<User> userList = userService.searchUsersByTags(tagNameList);
+        List<User> list = userList.stream().map(user -> userService.getSafeUser(user)).collect(Collectors.toList());
+        return ResultUtils.success(list,"查询成功");
+    }
     /**
      * 删除用户
      */

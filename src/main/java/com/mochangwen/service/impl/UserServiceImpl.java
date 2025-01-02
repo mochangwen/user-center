@@ -134,31 +134,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (CollectionUtils.isEmpty(tagNameList)){
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-//        //2.查询数据库
-//        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-//        tagNameList.forEach(tagName -> {
-//            wrapper.like(User::getTags,tagName);
-//        });
-//        List<User> userList = list(wrapper);
-//        return userList.stream().map(user -> getSafeUser(user)).collect(Collectors.toList());
+        //2.查询数据库
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        tagNameList.forEach(tagName -> {
+            wrapper.like(User::getTags,tagName);
+        });
+        List<User> userList = list(wrapper);
+        return userList.stream().map(user -> getSafeUser(user)).collect(Collectors.toList());
 
-        //在内存中查寻
-        List<User> userList = this.list();
-        Gson gson = new Gson();
-        //2.判断内存中是否包含要求的标签
-        return userList.stream().filter(user -> {
-            String tagstr = user.getTags();
-            if (StringUtils.isBlank(tagstr)){
-                return false;
-            }
-            Set<String> tempTagNameSet =  gson.fromJson(tagstr,new TypeToken<Set<String>>(){}.getType());
-            for (String tagName : tagNameList){
-                if (!tempTagNameSet.contains(tagName)){
-                    return false;
-                }
-            }
-            return true;
-        }).map(this::getSafeUser).collect(Collectors.toList());
+//        //在内存中查寻
+//        List<User> userList = this.list();
+//        Gson gson = new Gson();
+//        //2.判断内存中是否包含要求的标签
+//        return userList.stream().filter(user -> {
+//            String tagstr = user.getTags();
+//            if (StringUtils.isBlank(tagstr)){
+//                return false;
+//            }
+//            Set<String> tempTagNameSet =  gson.fromJson(tagstr,new TypeToken<Set<String>>(){}.getType());
+//            for (String tagName : tagNameList){
+//                if (!tempTagNameSet.contains(tagName)){
+//                    return false;
+//                }
+//            }
+//            return true;
+//        }).map(this::getSafeUser).collect(Collectors.toList());
     }
 
 

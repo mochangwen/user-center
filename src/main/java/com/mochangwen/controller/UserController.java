@@ -2,6 +2,8 @@ package com.mochangwen.controller;
 
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mochangwen.common.BaseResponse;
 import com.mochangwen.common.ErrorCode;
 import com.mochangwen.common.ResultUtils;
@@ -22,7 +24,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.mochangwen.constant.UserConstant.ADMIN_ROLE;
 import static com.mochangwen.constant.UserConstant.userLoginStatus;
 
 @RestController
@@ -94,7 +95,7 @@ public class UserController {
      */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deleteUser(@RequestBody Long id, HttpServletRequest request){
-        if (!isAdmin(request)){
+        if (!userService.isAdmin(request)){
             throw new BusinessException(ErrorCode.NO_AUTH, "无权限");
         }
         if (id<=0){
@@ -104,12 +105,25 @@ public class UserController {
     }
 
     /**
+     * 修改用户信息
+     */
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUser(@RequestBody User user, HttpServletRequest request){
+        Long userId = user.getId();
+        if (userId<=0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的id");
+        }
+        User loginUser = userService.getLoginUser(request);
+        int result =  userService.updateUser(user,loginUser);
+        return ResultUtils.success(result,"修改成功");
+    }
+    /**
      * 查寻用户
      */
     @GetMapping("/search")
     public BaseResponse<List<User>> searchUsers(@RequestParam(required = false) String username,HttpServletRequest request){
         //获取用户角色
-        if (!isAdmin(request)){
+        if (!userService.isAdmin(request)){
             throw new BusinessException(ErrorCode.NO_AUTH, "无权限");
         }
         log.info("searchUsers username:{}",username);
@@ -118,6 +132,18 @@ public class UserController {
             wrapper.like(User::getUsername,username);
         }
         List<User> list = userService.list(wrapper);
+        List<User> userList = list.stream().map(user -> userService.getSafeUser(user)).collect(Collectors.toList());
+        return ResultUtils.success(userList);
+    }
+
+    /**
+     * 查询推荐用户
+     */
+    @GetMapping("/recommend")
+    public BaseResponse<List<User>> recommendUser(Long pageNum,Long pageSize){
+        Page<User> page = new Page<>(pageNum, pageSize);
+        IPage<User> userIPage = userService.page(page);
+        List<User> list = userIPage.getRecords();
         List<User> userList = list.stream().map(user -> userService.getSafeUser(user)).collect(Collectors.toList());
         return ResultUtils.success(userList);
     }
@@ -151,15 +177,4 @@ public class UserController {
         return ResultUtils.success("退出成功");
     }
 
-
-    /**
-     * 是否为管理员
-     *
-     */
-    private Boolean isAdmin(HttpServletRequest request) {
-        // 仅管理员可查询
-        Object userObj = request.getSession().getAttribute(userLoginStatus);
-        User user = (User) userObj;
-        return user != null && user.getUserRole() == ADMIN_ROLE;
-    }
 }

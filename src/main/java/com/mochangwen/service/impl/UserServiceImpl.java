@@ -1,9 +1,8 @@
 package com.mochangwen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.mochangwen.common.ErrorCode;
 import com.mochangwen.exception.BusinessException;
 import com.mochangwen.model.domain.User;
@@ -15,12 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
+
 import javax.servlet.http.HttpServletRequest;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.mochangwen.constant.UserConstant.ADMIN_ROLE;
 import static com.mochangwen.constant.UserConstant.userLoginStatus;
 
 /**
@@ -35,7 +35,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
 
     private static final String ACCOUNT_REGEX = "^[a-zA-Z0-9_]{6,20}$";
+    private final UserMapper userMapper;
 
+    public UserServiceImpl(UserMapper userMapper) {
+        this.userMapper = userMapper;
+    }
 
 
     /**
@@ -161,6 +165,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 //        }).map(this::getSafeUser).collect(Collectors.toList());
     }
 
+    /**
+     * 获取当前登录用户
+     * @param request
+     * @return
+     */
+    @Override
+    public User getLoginUser(HttpServletRequest request) {
+        if (request==null){
+            return null;
+        }
+        User user = (User) request.getSession().getAttribute(userLoginStatus);
+        if (user == null){
+            log.info("用户未登录");
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "未登录");
+        }
+        return getSafeUser(user);
+    }
+
+    /**
+     * 更新用户信息
+     * @param user
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public int updateUser(User user, User loginUser) {
+        Long userId = user.getId();
+        if (userId <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请输入正确的id");
+        }
+        if (!isAdmin(loginUser)&& !userId.equals(loginUser.getId())){
+            throw new BusinessException(ErrorCode.NO_AUTH, "无权限");
+        }
+        User OlderUser = this.getById(userId);
+        if (OlderUser == null){
+            throw new BusinessException(ErrorCode.NULL_ERROR, "用户不存在");
+        }
+        //修改用户
+        int result = userMapper.updateById(user);
+        if (result<=0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "修改失败");
+        }
+        return 1;
+    }
 
     @Override
     public User getSafeUser(User user) {
@@ -186,6 +234,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     public static Boolean isValidAccount(String account) {
         return account != null && account.matches(ACCOUNT_REGEX);
+    }
+
+    /**
+     * 判断是否为管理员
+     * @param request
+     * @return
+     */
+    @Override
+    public boolean isAdmin(HttpServletRequest request) {
+        // 仅管理员可查询
+        Object userObj = request.getSession().getAttribute(userLoginStatus);
+        User user = (User) userObj;
+        return user != null && user.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 判断登录用户是否为管理员
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
     }
 }
 
